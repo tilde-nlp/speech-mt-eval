@@ -8,6 +8,7 @@ from tqdm import tqdm
 from sacrebleu.metrics import BLEU, CHRF, TER
 from comet import download_model, load_from_checkpoint
 
+from align import align_mwer_segmenter
 from metrics import calculate_wer, calculate_cer, calculate_ser
 
 
@@ -67,7 +68,7 @@ def evaluate_segmentation(ref_dir: str, hyp_dir: str):
     return total_ser
 
 
-def evaluate_mt(ref_dir: str, hyp_dir: str):
+def evaluate_mt(ref_dir: str, hyp_dir: str, mwer_path: str):
     ref_paths = glob.glob(os.path.join(ref_dir, "mt", "*"))
 
     ref_transcriptions = []
@@ -80,13 +81,22 @@ def evaluate_mt(ref_dir: str, hyp_dir: str):
         hyp_path = os.path.join(hyp_dir, "mt", file_name)
 
         with open(ref_path, "r", encoding="utf-8") as f:
-            ref_translations += f.readlines()
+            ref_mt = f.readlines()
+            ref_translations += ref_mt
 
         with open(src_path, "r", encoding="utf-8") as f:
             ref_transcriptions += f.readlines()
 
         with open(hyp_path, "r", encoding="utf-8") as f:
-            hyp_translations += f.readlines()
+            hyp_mt = f.readlines()
+
+            aligned_hyp = align_mwer_segmenter(
+                ref_mt,
+                hyp_mt,
+                mwer_path
+            )
+
+            hyp_translations += aligned_hyp
 
     ter = TER()
     chrf = CHRF(word_order=2)
@@ -110,10 +120,10 @@ def evaluate_mt(ref_dir: str, hyp_dir: str):
     return ter_results.score, chrf_results.score, bleu_results.score, comet_score
 
 
-def evaluate(ref_dir: str, hyp_dir: str):
+def evaluate(ref_dir: str, hyp_dir: str, mwer_path: str):
     wer, cer = evaluate_asr(ref_dir, hyp_dir)
     ser = evaluate_segmentation(ref_dir, hyp_dir)
-    ter_score, chrf_score, bleu_score, comet_score = evaluate_mt(ref_dir, hyp_dir)
+    ter_score, chrf_score, bleu_score, comet_score = evaluate_mt(ref_dir, hyp_dir, mwer_path)
 
     print("==== ASR")
     print(f"WER: {wer:.2f}")
@@ -133,6 +143,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-ref', '--ref_dir', type=str, required=True, help='path to reference data directory')
     parser.add_argument('-hyp', '--hyp_dir', type=str, required=True, help='path to hypothesis data directory')
+    parser.add_argument('-mwer', '--mwer_path', type=str, required=True, help='path to mwerSegmenter executable')
     args = parser.parse_args()
 
-    evaluate(args.ref_dir, args.hyp_dir)
+    evaluate(args.ref_dir, args.hyp_dir, args.mwer_path)

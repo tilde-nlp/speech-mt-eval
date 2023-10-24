@@ -28,6 +28,8 @@ The required dependencies can be installed with pip:
 pip install -r requirements.txt
 ```
 
+Download [mwerSegmenter](https://www-i6.informatik.rwth-aachen.de/web/Software/mwerSegmenter.tar.gz)
+
 ## Usage
 
 The evaluation script can be run as follows:
